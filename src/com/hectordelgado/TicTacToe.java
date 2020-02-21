@@ -47,6 +47,7 @@ public class TicTacToe {
             GameCoordinates coordinates = getUserInput(currentPlayer);
             placeGamePiece(coordinates.getX(), coordinates.getY(), currentPlayer.getPlayerGamePiece());
 
+            // Check if a player has one or the game is a draw.
             if (!gameStillActive(currentPlayer.getPlayerGamePiece())) {
                 displayWinningBoard(currentPlayer.getPlayerName());
                 gameIsActive = false;
@@ -60,6 +61,10 @@ public class TicTacToe {
         } while (gameIsActive);
     }
 
+    /**
+     * Creates and returns a new Player object.
+     * @return the newly created Player object.
+     */
     private Player initializePlayer() {
         // Create new player
         String playerColor = ConsoleColors.getRandomRegularColor();
@@ -72,22 +77,34 @@ public class TicTacToe {
         return new Player(playerName, playerColor, playerGamePiece);
     }
 
+    /**
+     * Prompts the user for a new coordinate until they enter a valid location.
+     * @param currentPlayer the current Player who is attempting to place a game piece
+     * @return A GameCoordinates object with validated coordinates.
+     */
     private GameCoordinates getUserInput(Player currentPlayer) {
         int column = 0;
         int row = 0;
         boolean coordinatesAreValid = false;
 
+        // Continues to prompt until the coordinates are valid
         while (!coordinatesAreValid) {
-            System.out.printf(currentPlayer.getPlayerColor() +  "%s's turn (your sign is '%s')." + ConsoleColors.RESET + "\n", currentPlayer.getPlayerName(), currentPlayer.getPlayerGamePiece());
+            System.out.printf(currentPlayer.getPlayerColor() +  "%s's turn (your sign is '%s')."
+                    + ConsoleColors.RESET + "\n", currentPlayer.getPlayerName(), currentPlayer.getPlayerGamePiece());
             displayBoard();
             System.out.print("Choose a location (ex: A3, B1, C2): ");
+
+            // Removes all whitespace from the users input and separates it into a String array
             String[] coordinates = sc.nextLine().replaceAll("\\s+","").split("");
 
+            // If the coordinates are of size 2 (a3, b1) then we attempt to convert them into Integers
             if (coordinates.length == 2) {
                 try {
                     column = columnToPosition(coordinates[0]);
                     row = Integer.parseInt(coordinates[1]);
 
+                    // Check if the converted coordinates are on the
+                    // game board and if the position is available
                     if (positionIsValid(column, row)) {
                         if (locationIsAvailable(column, row)) {
                             coordinatesAreValid = true;
