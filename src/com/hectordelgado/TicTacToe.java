@@ -1,16 +1,16 @@
 package com.hectordelgado;
 
-import java.util.InputMismatchException;
-import java.util.Scanner;
+import java.util.*;
 
 public class TicTacToe {
-
     private final int NUM_ROWS = 4;
     private final int NUM_COLS = 4;
     private final String EMPTY_GAME_SPACE = "#";
 
+    private List<String> GAME_PIECES = new LinkedList<>(Arrays.asList("X", "O"));
     private String[][] gameBoard = new String[NUM_ROWS][NUM_COLS];
     private boolean player1Turn = true;
+    private Scanner sc = new Scanner(System.in);
 
     /**
      * Constructor initializes all spaces in the
@@ -27,90 +27,85 @@ public class TicTacToe {
 
     /**
      * Used as the main runner for the game.
-     * When called, 2 players are prompted for a name and a random color is chosen for each.
+     * When called, 2 players are created and the game begins.
      * The logic keeps iterating until a player wins or a draw is determined.
      */
     public void startGame() {
-        // Create scanner for user input and get 2
-        // random colors to help users identify themselves.
-        Scanner sc = new Scanner(System.in);
-        String player1Color = ConsoleColors.getRandomRegularColor();
-        String player2Color = ConsoleColors.getRandomRegularColor();
+        System.out.println("\n" + ConsoleColors.CYAN_BACKGROUND +
+                "Welcome to Tic-Tac-Toe!" + ConsoleColors.RESET);
 
-        System.out.println("\n" + ConsoleColors.CYAN_BACKGROUND + "Welcome to Tic-Tac-Toe!" + ConsoleColors.RESET);
-
-        // Prompt users for a name
-        System.out.print(player1Color + "Enter name for player 1: " + ConsoleColors.RESET);
-        String player1 = sc.nextLine();
-        System.out.print(player2Color + "Enter name for player 2: " + ConsoleColors.RESET);
-        String player2 = sc.nextLine();
-
+        Player player01 = initializePlayer();
+        Player player02 = initializePlayer();
+        Player currentPlayer = new Player();
         boolean gameIsActive = true;
 
         do {
-            String currentPlayer = "";
-            String currentPlayerColor = "";
-            String currentGamePiece = "";
-            String column = "";
-            int row = 0;
+            // Switch current player
+            currentPlayer.copy(player1Turn ? player01 : player02);
 
-            // Switch current players name, color and game piece
-            if (player1Turn) {
-                currentPlayer = player1;
-                currentPlayerColor = player1Color;
-                currentGamePiece = "X";
-            } else {
-                currentPlayer = player2;
-                currentPlayerColor = player2Color;
-                currentGamePiece = "O";
+            // Get valid coordinates from user and place game piece on game board.
+            GameCoordinates coordinates = getUserInput(currentPlayer);
+            placeGamePiece(coordinates.getX(), coordinates.getY(), currentPlayer.getPlayerGamePiece());
+
+            if (!gameStillActive(currentPlayer.getPlayerGamePiece())) {
+                displayWinningBoard(currentPlayer.getPlayerName());
+                gameIsActive = false;
+            } else if (gameIsDraw()) {
+                displayBoard();
+                System.out.println("GAME IS A BUST. NO ONE WINS");
+                gameIsActive = false;
             }
 
-            // Keeps prompting the user to place a
-            // game piece until the location is available,
-            // valid, and the game is still active.
-            while (true) {
-                System.out.printf(currentPlayerColor + "%s's turn." + ConsoleColors.RESET, currentPlayer);
-                System.out.println();
-                displayBoard();
+            player1Turn = !player1Turn;
+        } while (gameIsActive);
+    }
 
-                // Prompt for a location
-                System.out.print("Choose a column (A-C): ");
-                column = sc.nextLine();
-                System.out.print("Choose a row (1-3): ");
+    private Player initializePlayer() {
+        // Create new player
+        String playerColor = ConsoleColors.getRandomRegularColor();
+        int random = (int) (GAME_PIECES.size() * Math.random());
+        String playerGamePiece = GAME_PIECES.get(random);
+        GAME_PIECES.remove(random);
+        System.out.print("Enter name for new player: ");
+        String playerName = sc.nextLine();
 
-                // Attempts to convert users row into an int,
-                // if the input is incorrect it defaults to 0 (invalid position)
+        return new Player(playerName, playerColor, playerGamePiece);
+    }
+
+    private GameCoordinates getUserInput(Player currentPlayer) {
+        int column = 0;
+        int row = 0;
+        boolean coordinatesAreValid = false;
+
+        while (!coordinatesAreValid) {
+            System.out.printf(currentPlayer.getPlayerColor() +  "%s's turn (your sign is '%s')." + ConsoleColors.RESET + "\n", currentPlayer.getPlayerName(), currentPlayer.getPlayerGamePiece());
+            displayBoard();
+            System.out.print("Choose a location (ex: A3, B1, C2): ");
+            String[] coordinates = sc.nextLine().replaceAll("\\s+","").split("");
+
+            if (coordinates.length == 2) {
                 try {
-                    row = sc.nextInt();
-                    sc.nextLine();
-                } catch (InputMismatchException ex) {
-                    sc.nextLine();
-                    System.out.println("Wrong input for row, row must be a number (1-3)");
-                    row = 0;
-                }
+                    column = columnToPosition(coordinates[0]);
+                    row = Integer.parseInt(coordinates[1]);
 
-                if (locationIsAvailable(column, row)) {
                     if (positionIsValid(column, row)) {
-                        placeGamePiece(columnToPosition(column), row, currentGamePiece);
-
-                        if (!gameStillActive(currentGamePiece)) {
-                            displayWinningBoard(currentPlayer);
-                            gameIsActive = false;
-                        } else if (gameIsDraw()) {
-                            displayBoard();
-                            System.out.println("GAME IS A BUST. NO ONE WINS");
-                            gameIsActive = false;
+                        if (locationIsAvailable(column, row)) {
+                            coordinatesAreValid = true;
+                        } else {
+                            System.out.println("Error. Location is taken.");
                         }
-                        break;
                     } else {
                         System.out.println("Error, illegal location! Column must be A-C and row must be 1-3.");
                     }
-                } else {
-                    System.out.println("Error. Location is taken.");
+                } catch (NumberFormatException ex) {
+                    System.out.println("Error: wrong input for coordinate.");
                 }
+            } else {
+                System.out.println("Error, size not met: " + coordinates.length);
             }
-            player1Turn = !player1Turn;
-        } while (gameIsActive);
+        }
+
+        return new GameCoordinates(column, row);
     }
 
     /**
@@ -154,8 +149,8 @@ public class TicTacToe {
      * @param row row entered by user
      * @return true if the location is not occupied
      */
-    private boolean locationIsAvailable(String column, int row) {
-        return gameBoard[row][columnToPosition(column)].equals(EMPTY_GAME_SPACE);
+    private boolean locationIsAvailable(int column, int row) {
+        return gameBoard[row][column].equals(EMPTY_GAME_SPACE);
     }
 
     /**
@@ -165,8 +160,8 @@ public class TicTacToe {
      * @param row row entered by user
      * @return true if the position is within a valid range
      */
-    private boolean positionIsValid(String column, int row) {
-        return (columnToPosition(column) > 0 && columnToPosition(column) < NUM_COLS) && (row > 0 && row < NUM_ROWS);
+    private boolean positionIsValid(int column, int row) {
+        return (column > 0 && column < NUM_COLS) && (row > 0 && row < NUM_ROWS);
     }
 
     /**
